@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exercise 4.3–4.6 – D3 Bar Chart</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #333; }
+    nav { background: #1a1a2e; padding: 12px 24px; display: flex; gap: 16px; align-items: center; }
+    nav a { color: #e0e0e0; text-decoration: none; font-size: 14px; padding: 6px 12px; border-radius: 4px; }
+    nav a:hover, nav a.active { background: #4a90d9; color: white; }
+    nav .title { color: white; font-weight: bold; margin-right: 16px; }
+    main { max-width: 960px; margin: 40px auto; padding: 0 24px; }
+    h1 { font-size: 28px; margin-bottom: 8px; color: #1a1a2e; }
+    p.desc { color: #666; margin-bottom: 24px; line-height: 1.6; }
+    .chart-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    .chart-title { font-size: 16px; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; }
+    .chart-subtitle { font-size: 13px; color: #888; margin-bottom: 16px; }
+    .responsive-container { width: 100%; }
+    .bar { fill: #4a90d9; transition: fill 0.2s; cursor: pointer; }
+    .bar:hover { fill: #2c6fad; }
+    .axis text { font-size: 11px; fill: #555; }
+    .axis path, .axis line { stroke: #ccc; }
+    .axis-label { font-size: 12px; fill: #555; font-weight: 500; }
+    #console-output { background: #1e1e1e; color: #a8ff60; font-family: monospace; font-size: 12px; padding: 16px; border-radius: 8px; margin-top: 20px; max-height: 140px; overflow-y: auto; white-space: pre; }
+    .console-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #555; }
+    .step-badge { display: inline-block; background: #4a90d9; color: white; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 10px; margin-right: 6px; }
+    .steps { margin-bottom: 24px; }
+    .step { font-size: 13px; color: #555; margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="title">COS30045</span>
+    <a href="../index.html">Home</a>
+    <a href="index.html">Ex 4.1 SVG House</a>
+    <a href="bar.html" class="active">Ex 4.3–4.6 Bar Chart</a>
+    <a href="../ex5/index.html">Ex 5 Multi-chart</a>
+    <a href="../ex6/index.html">Ex 6 Interactivity</a>
+  </nav>
+  <main>
+    <h1>Exercise 4.3–4.6 – D3 Bar Chart</h1>
+    <p class="desc">
+      Loads TV energy data from CSV, binds it to DOM elements, and renders a responsive bar chart
+      with <strong>band scale</strong> (x-axis, categories) and <strong>linear scale</strong> (y-axis, counts).
+    </p>
+    <div class="steps">
+      <div class="step"><span class="step-badge">4.3</span> Set up responsive SVG container with D3</div>
+      <div class="step"><span class="step-badge">4.4</span> Load CSV data using <code>d3.csv()</code> with row conversion — check console</div>
+      <div class="step"><span class="step-badge">4.5</span> Bind data to rect elements and add bar attributes</div>
+      <div class="step"><span class="step-badge">4.6</span> Add linear scale (y), band scale (x), and axes with padding</div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">TV Count by Screen Technology</div>
+      <div class="chart-subtitle">Source: Australian Energy Rating TV Dataset · Band scale (x) + Linear scale (y)</div>
+      <div class="responsive-container" id="bar-chart"></div>
+    </div>
+    <div class="console-title">Browser Console Output (D3 data objects)</div>
+    <div id="console-output">Loading data...</div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script>
+    // Ex 4.2/4.3: Apply style to html element and set up responsive SVG container
+    d3.select("body").style("font-family", "Segoe UI, sans-serif");
+
+    const margin = { top: 30, right: 30, bottom: 80, left: 60 };
+    const container = document.getElementById("bar-chart");
+    const totalWidth = container.clientWidth || 800;
+    const width = totalWidth - margin.left - margin.right;
+    const height = 380 - margin.top - margin.bottom;
+
+    // Ex 4.3: Create SVG in responsive container
+    const svg = d3.select("#bar-chart")
+      .append("svg")
+        .attr("width", "100%")
+        .attr("viewBox", `0 0 ${totalWidth} ${380}`)
+        .attr("class", "responsive-svg")  // add class for responsive styling
+      .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Ex 4.4: Load CSV data using d3.csv() with row conversion function
+    const csvData = `brand,model,screenSize,screenTech,star,energyConsumption
+philips,58BFL2114/12,58,LED,5.5,322
+philips,55HFL6114U/12,55,LED,5,319
+hisense,75U80G,75,LED,2.5,1060
+jvc,AV-H323115A,32,LED,5,130
+samsung,QA55QN90DAWXXY,55,QLED,3,258
+samsung,QA65QN90DAWXXY,65,QLED,2.5,380
+lg,OLED55C4PSA,55,OLED,3.5,141
+lg,OLED65C4PSA,65,OLED,3,195
+sony,XR55X90L,55,LED,3,202
+tcl,75C935,75,QLED,2,680
+hisense,55U8K,55,QLED,4,218
+samsung,UA65AU8000WXXY,65,LED,3.5,421
+lg,50UR78006LK,50,LED,4,155
+sony,KD55X85L,55,LED,3.5,215
+philips,65OLED808/79,65,OLED,3,210
+tcl,65C635,65,LED,3,269
+hisense,65A7H,65,LED,3.5,288
+samsung,QA55Q80DAWXXY,55,QLED,3.5,212
+lg,OLED77C4PSA,77,OLED,2.5,290
+sony,XR65A80L,65,OLED,3,225`;
+
+    // Row conversion function — converts types
+    function rowConvert(d) {
+      return {
+        brand:             d.brand,
+        model:             d.model,
+        screenSize:        +d.screenSize,   // numeric conversion
+        screenTech:        d.screenTech,
+        star:              +d.star,
+        energyConsumption: +d.energyConsumption
+      };
+    }
+
+    const consoleOut = document.getElementById("console-output");
+
+    // Using d3.csvParse to simulate d3.csv() loading with row conversion
+    const rawData = d3.csvParse(csvData, rowConvert);
+
+    // Ex 4.4: Write data to console / output panel
+    consoleOut.textContent = "// d3.csv() loaded " + rawData.length + " rows\n";
+    consoleOut.textContent += "// First 3 data objects:\n";
+    rawData.slice(0, 3).forEach((d, i) => {
+      consoleOut.textContent += `row[${i}]: { brand: "${d.brand}", screenTech: "${d.screenTech}", screenSize: ${d.screenSize}, energyConsumption: ${d.energyConsumption} }\n`;
+    });
+    consoleOut.textContent += `\n// d3.min(data, d=>d.energyConsumption) = ${d3.min(rawData, d => d.energyConsumption)}\n`;
+    consoleOut.textContent += `// d3.max(data, d=>d.energyConsumption) = ${d3.max(rawData, d => d.energyConsumption)}\n`;
+    consoleOut.textContent += `// d3.mean(data, d=>d.energyConsumption) = ${d3.mean(rawData, d => d.energyConsumption).toFixed(1)}\n`;
+
+    // Aggregate: count per screenTech
+    const counts = d3.rollup(rawData, v => v.length, d => d.screenTech);
+    const data = Array.from(counts, ([tech, count]) => ({ tech, count }))
+                      .sort((a, b) => b.count - a.count);
+
+    // Ex 4.6: Band scale for category (x), linear scale for count (y)
+    const x = d3.scaleBand()
+      .domain(data.map(d => d.tech))
+      .range([0, width])
+      .padding(0.3);   // Ex 4.6: padding
+
+    const y = d3.scaleLinear()
+      .domain([0, d3.max(data, d => d.count) * 1.15])
+      .nice()
+      .range([height, 0]);
+
+    // Colour scale
+    const colour = d3.scaleOrdinal()
+      .domain(data.map(d => d.tech))
+      .range(["#4a90d9", "#e67e22", "#9b59b6", "#2ecc71", "#e74c3c"]);
+
+    // Axes
+    svg.append("g")
+      .attr("class", "axis")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x))
+      .selectAll("text")
+        .style("font-size", "13px");
+
+    svg.append("g")
+      .attr("class", "axis")
+      .call(d3.axisLeft(y).ticks(5));
+
+    // Axis labels
+    svg.append("text")
+      .attr("class", "axis-label")
+      .attr("x", width / 2)
+      .attr("y", height + 55)
+      .attr("text-anchor", "middle")
+      .text("Screen Technology");
+
+    svg.append("text")
+      .attr("class", "axis-label")
+      .attr("transform", "rotate(-90)")
+      .attr("x", -height / 2)
+      .attr("y", -45)
+      .attr("text-anchor", "middle")
+      .text("Count of TVs");
+
+    // Ex 4.5: Bind data to rect elements and set bar attributes
+    svg.selectAll(".bar")
+      .data(data)
+      .join("rect")
+        .attr("class", "bar")
+        .attr("x",      d => x(d.tech))
+        .attr("y",      d => y(d.count))
+        .attr("width",  x.bandwidth())
+        .attr("height", d => height - y(d.count))
+        .attr("fill",   d => colour(d.tech))
+        .attr("rx", 3);
+
+    // Value labels on bars
+    svg.selectAll(".bar-label")
+      .data(data)
+      .join("text")
+        .attr("class", "bar-label")
+        .attr("x", d => x(d.tech) + x.bandwidth() / 2)
+        .attr("y", d => y(d.count) - 6)
+        .attr("text-anchor", "middle")
+        .style("font-size", "12px")
+        .style("fill", "#333")
+        .text(d => d.count);
+  </script>
+</body>
+</html>
